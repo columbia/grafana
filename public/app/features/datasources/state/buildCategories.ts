@@ -76,6 +76,7 @@ function sortPlugins(plugins: DataSourcePluginMeta[]) {
     mysql: 80,
     jaeger: 100,
     postgres: 79,
+    turbo: 78,
     gcloud: -1,
   };
 

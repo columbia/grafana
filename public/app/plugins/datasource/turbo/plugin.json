@@ -1,18 +1,18 @@
 {
   "type": "datasource",
-  "name": "PostgreSQL",
-  "id": "postgres",
+  "name": "Turbo",
+  "id": "turbo",
   "category": "sql",
 
   "info": {
-    "description": "Data source for PostgreSQL and compatible databases",
+    "description": "Caching layer for DP systems.",
     "author": {
       "name": "Grafana Labs",
       "url": "https://grafana.com"
     },
     "logos": {
-      "small": "",
-      "large": ""
+      "small": "img/turbo.svg",
+      "large": "img/turbo.svg"
     }
   },
 

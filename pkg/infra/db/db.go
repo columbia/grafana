@@ -56,6 +56,14 @@ func IsTestDbPostgres() bool {
 	return false
 }
 
+func IsTestDbTurbo() bool {
+	if db, present := os.LookupEnv("GRAFANA_TEST_DB"); present {
+		return db == migrator.Postgres
+	}
+
+	return false
+}
+
 func IsTestDBMSSQL() bool {
 	if db, present := os.LookupEnv("GRAFANA_TEST_DB"); present {
 		return db == migrator.MSSQL

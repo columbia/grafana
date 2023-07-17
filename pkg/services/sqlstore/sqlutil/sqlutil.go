@@ -52,6 +52,23 @@ func PostgresTestDB() TestDB {
 	}
 }
 
+func TurboTestDB() TestDB {
+	host := os.Getenv("POSTGRES_HOST")
+	if host == "" {
+		host = "localhost"
+	}
+	port := os.Getenv("POSTGRES_PORT")
+	if port == "" {
+		port = "5432"
+	}
+	connStr := fmt.Sprintf("user=grafanatest password=grafanatest host=%s port=%s dbname=grafanatest sslmode=disable",
+		host, port)
+	return TestDB{
+		DriverName: "postgres",
+		ConnStr:    connStr,
+	}
+}
+
 func MSSQLTestDB() TestDB {
 	host := os.Getenv("MSSQL_HOST")
 	if host == "" {

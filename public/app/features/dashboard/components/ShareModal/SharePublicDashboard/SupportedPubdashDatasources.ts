@@ -57,6 +57,7 @@ export const supportedDatasources = new Set<string>([
   'nagasudhirpulla-api-datasource',
   'opentsdb',
   'postgres',
+  'turbo',
   'prometheus',
   'redis-datasource',
   'sentinelone-dataset-datasource',

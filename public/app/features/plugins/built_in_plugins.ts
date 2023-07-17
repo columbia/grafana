@@ -23,6 +23,8 @@ const mysqlPlugin = async () =>
   await import(/* webpackChunkName: "mysqlPlugin" */ 'app/plugins/datasource/mysql/module');
 const postgresPlugin = async () =>
   await import(/* webpackChunkName: "postgresPlugin" */ 'app/plugins/datasource/postgres/module');
+const turboPlugin = async () =>
+  await import(/* webpackChunkName: "turboPlugin" */ 'app/plugins/datasource/turbo/module');
 const prometheusPlugin = async () =>
   await import(/* webpackChunkName: "prometheusPlugin" */ 'app/plugins/datasource/prometheus/module');
 const mssqlPlugin = async () =>
@@ -96,6 +98,7 @@ const builtInPlugins: any = {
   'app/plugins/datasource/mixed/module': mixedPlugin,
   'app/plugins/datasource/mysql/module': mysqlPlugin,
   'app/plugins/datasource/postgres/module': postgresPlugin,
+  'app/plugins/datasource/turbo/module': turboPlugin,
   'app/plugins/datasource/mssql/module': mssqlPlugin,
   'app/plugins/datasource/prometheus/module': prometheusPlugin,
   'app/plugins/datasource/testdata/module': testDataDSPlugin,

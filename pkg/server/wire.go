@@ -160,6 +160,7 @@ import (
 	"github.com/grafana/grafana/pkg/tsdb/prometheus"
 	"github.com/grafana/grafana/pkg/tsdb/tempo"
 	"github.com/grafana/grafana/pkg/tsdb/testdatasource"
+	"github.com/grafana/grafana/pkg/tsdb/turbo"
 )
 
 var wireBasicSet = wire.NewSet(
@@ -197,6 +198,7 @@ var wireBasicSet = wire.NewSet(
 	cloudmonitoring.ProvideService,
 	azuremonitor.ProvideService,
 	postgres.ProvideService,
+	turbo.ProvideService,
 	mysql.ProvideService,
 	mssql.ProvideService,
 	store.ProvideEntityEventsService,
