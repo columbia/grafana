@@ -18,6 +18,7 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/tracing"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
+	"github.com/grafana/grafana-plugin-sdk-go/data/sqlutil"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -41,7 +42,7 @@ type DataSourceInfo struct {
 type DataPluginConfiguration struct {
 	DSInfo            DataSourceInfo
 	TimeColumnNames   []string
-	MetricColumnTypes []int
+	MetricColumnTypes []string
 	RowLimit          int64
 }
 
@@ -49,7 +50,7 @@ type DataSourceHandler struct {
 	httpClient             *http.Client
 	queryResultTransformer sqleng.SqlQueryResultTransformer
 	timeColumnNames        []string
-	metricColumnTypes      []int
+	metricColumnTypes      []string
 	log                    log.Logger
 	dsInfo                 DataSourceInfo
 	rowLimit               int64
@@ -126,7 +127,7 @@ func (s *Service) newInstanceSettings(cfg *setting.Cfg) datasource.InstanceFacto
 
 		config := DataPluginConfiguration{
 			DSInfo:            dsInfo,
-			MetricColumnTypes: []int{1043}, //{"UNKNOWN", "TEXT", "VARCHAR", "CHAR"},
+			MetricColumnTypes: []string{"UNKNOWN", "TEXT", "VARCHAR", "CHAR"},
 			RowLimit:          cfg.DataProxyRowLimit,
 		}
 
@@ -204,7 +205,7 @@ func (s *Service) QueryData(ctx context.Context, req *backend.QueryDataRequest) 
 
 type resultJson struct {
 	Columns     []string   `json:"Columns"`
-	ColumnTypes []int      `json:"ColumnTypes"`
+	ColumnTypes []string   `json:"ColumnTypes"`
 	Values      [][]string `json:"Values"`
 }
 
@@ -347,10 +348,10 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 		return
 	}
 
-	if err := convertSQLTimeColumnsToEpochMS(frame, qm); err != nil {
-		errAppendDebug("converting time columns failed", err, interpolatedQuery)
-		return
-	}
+	// if err := convertSQLTimeColumnsToEpochMS(frame, qm); err != nil {
+	// 	errAppendDebug("converting time columns failed", err, interpolatedQuery)
+	// 	return
+	// }
 
 	if qm.Format == dataQueryFormatSeries {
 		// time series has to have time column
@@ -371,11 +372,11 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 				continue
 			}
 
-			var err error
-			if frame, err = convertSQLValueColumnToFloat(frame, i); err != nil {
-				errAppendDebug("convert value to float failed", err, interpolatedQuery)
-				return
-			}
+			// var err error
+			// if frame, err = convertSQLValueColumnToFloat(frame, i); err != nil {
+			// 	errAppendDebug("convert value to float failed", err, interpolatedQuery)
+			// 	return
+			// }
 		}
 
 		tsSchema := frame.TimeSeriesSchema()
@@ -461,6 +462,10 @@ func (t *turboQueryResultTransformer) TransformQueryError(_ log.Logger, err erro
 	return err
 }
 
+func (t *turboQueryResultTransformer) GetConverterList() []sqlutil.StringConverter {
+	return []sqlutil.StringConverter{}
+}
+
 // dataQueryFormat is the type of query.
 type dataQueryFormat string
 
@@ -478,7 +483,7 @@ type dataQueryModel struct {
 	FillMissing       *data.FillMissing // property not set until after Interpolate()
 	Interval          time.Duration
 	columnNames       []string
-	columnTypes       []int
+	columnTypes       []string
 	timeIndex         int
 	timeEndIndex      int
 	metricIndex       int
@@ -569,23 +574,56 @@ func (e *DataSourceHandler) newProcessCfg(query backend.DataQuery, queryContext 
 	return qm, nil
 }
 
-func NewFrame(columns []string, values [][]string) *data.Frame {
+func NewFrame(columns []string, columnTypes []string, values [][]string) *data.Frame {
 
 	fields := make(data.Fields, len(columns))
 
 	for i, rowValues := range values {
-		fields[i] = data.NewField(columns[i], data.Labels{}, rowValues)
-		// fields[i] = data.NewFieldFromFieldType(data.FieldType(v), 0)
-		// fields[i].Name = columns[i]
+
+		switch columnTypes[i] {
+		case "int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64":
+			fields[i] = data.NewField(columns[i], data.Labels{}, castToInt(rowValues))
+			break
+		case "float32", "float64":
+			fields[i] = data.NewField(columns[i], data.Labels{}, castToFloat(rowValues))
+			break
+		default:
+			// Assuming values are strings
+			fields[i] = data.NewField(columns[i], data.Labels{}, rowValues)
+		}
 	}
 	return data.NewFrame("", fields...)
 }
 
+func castToInt(values []string) []int64 {
+	v := make([]int64, len(values))
+	for i, value := range values {
+		val, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			panic(fmt.Sprintf("can't convert to int: %q", val))
+		}
+		v[i] = val
+	}
+	return v
+}
+
+func castToFloat(values []string) []float64 {
+	v := make([]float64, len(values))
+	for i, value := range values {
+		val, err := strconv.ParseFloat(value, 32)
+		if err != nil {
+			panic(fmt.Sprintf("can't convert to float: %f", val))
+		}
+		v[i] = val
+	}
+	return v
+}
+
 func FrameFromResultJson(rj resultJson, rowLimit int64) (*data.Frame, error) {
-	// types := rj.ColumnTypes
+	types := rj.ColumnTypes
 	names := rj.Columns
 	values := rj.Values
-	frame := NewFrame(names, values)
+	frame := NewFrame(names, types, values)
 	return frame, nil
 }
 
@@ -620,19 +658,4 @@ func SetupFillmode(query *backend.DataQuery, interval time.Duration, fillmode st
 		return err
 	}
 	return nil
-}
-
-// epochPrecisionToMS converts epoch precision to millisecond, if needed.
-// Only seconds to milliseconds supported right now
-func epochPrecisionToMS(value float64) float64 {
-	s := strconv.FormatFloat(value, 'e', -1, 64)
-	if strings.HasSuffix(s, "e+09") {
-		return value * float64(1e3)
-	}
-
-	if strings.HasSuffix(s, "e+18") {
-		return value / float64(time.Millisecond)
-	}
-
-	return value
 }
