@@ -5,7 +5,7 @@ import { DB, SQLQuery, SQLSelectableValue } from 'app/features/plugins/sql/types
 import { formatSQL } from 'app/features/plugins/sql/utils/formatSQL';
 import { TemplateSrv } from 'app/features/templating/template_srv';
 
-import { getSchema, getTimescaleDBVersion, getVersion, showTables } from './TurboMetaQuery';
+import { getSchema, showTables } from './TurboMetaQuery';
 import { TurboQueryModel } from './TurboQueryModel';
 import { fetchColumns, fetchTables, getSqlCompletionProvider } from './sqlCompletionProvider';
 import { getFieldConfig, toRawSql } from './sqlUtil';
@@ -20,28 +20,6 @@ export class TurboDatasource extends SqlDatasource {
 
   getQueryModel(target?: SQLQuery, templateSrv?: TemplateSrv, scopedVars?: ScopedVars): TurboQueryModel {
     return new TurboQueryModel(target, templateSrv, scopedVars);
-  }
-
-  async getVersion(): Promise<string> {
-    const value = await this.runSql<{ version: number }>(getVersion());
-    const results = value.fields.version?.values;
-
-    if (!results) {
-      return '';
-    }
-
-    return results[0].toString();
-  }
-
-  async getTimescaleDBVersion(): Promise<string | undefined> {
-    const value = await this.runSql<{ extversion: string }>(getTimescaleDBVersion());
-    const results = value.fields.extversion?.values;
-
-    if (!results) {
-      return undefined;
-    }
-
-    return results[0];
   }
 
   async fetchTables(): Promise<string[]> {
